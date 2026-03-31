@@ -69,8 +69,10 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       // 자동 로그인 처리
       if (autoLogin) {
         localStorage.setItem(AUTO_LOGIN_KEY, 'true')
+        localStorage.setItem('mindmap_auto_cred', btoa(encodeURIComponent(JSON.stringify({ e: email, p: password }))))
       } else {
         localStorage.removeItem(AUTO_LOGIN_KEY)
+        localStorage.removeItem('mindmap_auto_cred')
       }
 
       await onAuthSuccess()

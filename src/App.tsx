@@ -95,31 +95,36 @@ function App() {
     if (isSupabaseDemoMode) return
 
     const isAutoLogin = localStorage.getItem('mindmap_auto_login') === 'true'
+    const autoCred = localStorage.getItem('mindmap_auto_cred')
 
-    if (isAutoLogin) {
-      // 자동 로그인: 토큰 갱신 완료까지 스플래시 표시 후 메인 UI 렌더링
-      const refreshWithTimeout = Promise.race([
-        supabase.auth.refreshSession(),
-        new Promise(resolve => setTimeout(() => resolve({ data: { session: null } }), 5000))
-      ]) as Promise<{ data: { session: { user: User } | null } }>
-
-      refreshWithTimeout.then(async ({ data: { session } }) => {
-        if (isLoggingOut.current) { setSessionReady(true); return }
-        if (session?.user) {
-          setUser(session.user)
+    if (isAutoLogin && autoCred) {
+      // 자동 로그인: 저장된 자격증명으로 signInWithPassword 호출
+      try {
+        const { e, p } = JSON.parse(decodeURIComponent(atob(autoCred)))
+        supabase.auth.signInWithPassword({ email: e, password: p }).then(async ({ data, error }) => {
+          if (error || !data.user) {
+            // 로그인 실패 시 자동 로그인 해제하고 로그인 화면으로
+            localStorage.removeItem('mindmap_auto_login')
+            localStorage.removeItem('mindmap_auto_cred')
+            setSessionReady(true)
+            return
+          }
+          setUser(data.user)
           setIsAuthenticated(true)
           setSidebarRefresh(prev => prev + 1)
           setSessionReady(true)
-          const isAdminUser = await checkAdminStatus(session.user.id)
+          const isAdminUser = await checkAdminStatus(data.user.id)
           if (!isAdminUser) {
-            handleLicenseCheck(session.user.id)
+            handleLicenseCheck(data.user.id)
           }
-        } else {
+        }).catch(() => {
           setSessionReady(true)
-        }
-      }).catch(() => {
+        })
+      } catch {
+        localStorage.removeItem('mindmap_auto_login')
+        localStorage.removeItem('mindmap_auto_cred')
         setSessionReady(true)
-      })
+      }
     } else {
       // 일반 시작: 스플래시 없이 바로 진행
       setSessionReady(true)
@@ -385,6 +390,7 @@ function App() {
 
     // 2. 로컬 스토리지 먼저 삭제 (signOut 실패해도 세션 제거됨)
     localStorage.removeItem('mindmap_auto_login')
+    localStorage.removeItem('mindmap_auto_cred')
     clearSupabaseStorage()
     clearLicense()
 
