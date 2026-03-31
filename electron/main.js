@@ -8,6 +8,7 @@ const isDev = process.env.NODE_ENV === 'development'
 // 자동 업데이트 설정
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = true
+autoUpdater.logger = require('electron').app ? console : null
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -66,7 +67,7 @@ function createWindow() {
           dialog.showMessageBox(win, {
             type: 'info',
             title: 'MindMap Pro',
-            message: 'MindMap Pro v1.2.0',
+            message: 'MindMap Pro v1.2.1',
             detail: '협업 마인드맵 도구\n\n© 2024 MindMap Pro',
           })
         }},
@@ -198,6 +199,16 @@ autoUpdater.on('update-downloaded', () => {
 
 autoUpdater.on('error', (err) => {
   console.error('Auto-update error:', err)
+  const win = BrowserWindow.getFocusedWindow()
+  if (win) {
+    win.setTitle('MindMap Pro')
+    dialog.showMessageBox(win, {
+      type: 'error',
+      title: '업데이트 오류',
+      message: '업데이트 다운로드에 실패했습니다.',
+      detail: err.message || String(err),
+    })
+  }
 })
 
 app.on('window-all-closed', () => {
