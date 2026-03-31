@@ -31,7 +31,6 @@ interface Collaborator {
 function App() {
   const [user, setUser] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [sessionLoading, setSessionLoading] = useState(true)
   const [isDemoMode, setIsDemoMode] = useState(isSupabaseDemoMode)
   const [currentLayout, setCurrentLayout] = useState('logicalStructure')
   const [currentMapId, setCurrentMapId] = useState<string | null>(null)
@@ -90,30 +89,19 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (isSupabaseDemoMode) {
-      setSessionLoading(false)
-      return
-    }
+    if (isSupabaseDemoMode) return
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (isLoggingOut.current) {
-        setSessionLoading(false)
-        return
-      }
+      if (isLoggingOut.current) return
       if (session?.user) {
         setUser(session.user)
         setIsAuthenticated(true)
-        setSessionLoading(false)
-        // 관리자/라이선스 체크는 백그라운드에서 진행
+        setSidebarRefresh(prev => prev + 1)
         const isAdminUser = await checkAdminStatus(session.user.id)
         if (!isAdminUser) {
           handleLicenseCheck(session.user.id)
         }
-      } else {
-        setSessionLoading(false)
       }
-    }).catch(() => {
-      setSessionLoading(false)
     })
 
     const {
@@ -547,15 +535,6 @@ function App() {
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCurrentMapTitle(e.target.value)
-  }
-
-  // 세션 확인 중 로딩 화면
-  if (sessionLoading) {
-    return (
-      <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p>로딩 중...</p>
-      </div>
-    )
   }
 
   // 공유 링크로 접근한 경우 - 읽기 전용 뷰
