@@ -67,7 +67,7 @@ function createWindow() {
           dialog.showMessageBox(win, {
             type: 'info',
             title: 'MindMap Pro',
-            message: 'MindMap Pro v1.3.6',
+            message: 'MindMap Pro v1.3.7',
             detail: '협업 마인드맵 도구\n\n© 2024 MindMap Pro',
           })
         }},

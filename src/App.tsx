@@ -93,9 +93,10 @@ function App() {
   useEffect(() => {
     if (isSupabaseDemoMode) return
 
-    // localStorage에서 저장된 세션을 즉시 읽기 (토큰 갱신 없이)
+    // 자동 로그인: 토큰 즉시 갱신 후 세션 복원
     const isAutoLogin = localStorage.getItem('mindmap_auto_login') === 'true'
     if (isAutoLogin) {
+      // 저장된 사용자 정보 먼저 표시
       try {
         const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
         if (storageKey) {
@@ -103,27 +104,49 @@ function App() {
           if (stored?.user) {
             setUser(stored.user)
             setIsAuthenticated(true)
-            setSidebarRefresh(prev => prev + 1)
           }
         }
       } catch {
-        // 파싱 실패 시 무시 - getSession이 처리
+        // 무시
       }
-    }
 
-    // Supabase 세션 복원 (토큰 갱신 포함)
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (isLoggingOut.current) return
-      if (session?.user) {
-        setUser(session.user)
-        setIsAuthenticated(true)
-        setSidebarRefresh(prev => prev + 1)
-        const isAdminUser = await checkAdminStatus(session.user.id)
-        if (!isAdminUser) {
-          handleLicenseCheck(session.user.id)
+      // 토큰 강제 갱신 후 사이드바 로드
+      supabase.auth.refreshSession().then(async ({ data: { session } }) => {
+        if (isLoggingOut.current) return
+        if (session?.user) {
+          setUser(session.user)
+          setIsAuthenticated(true)
+          setSidebarRefresh(prev => prev + 1)
+          const isAdminUser = await checkAdminStatus(session.user.id)
+          if (!isAdminUser) {
+            handleLicenseCheck(session.user.id)
+          }
         }
-      }
-    })
+      }).catch(() => {
+        // 토큰 갱신 실패 시 getSession 폴백
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
+          if (session?.user) {
+            setUser(session.user)
+            setIsAuthenticated(true)
+            setSidebarRefresh(prev => prev + 1)
+          }
+        })
+      })
+    } else {
+      // 일반 로그인: 기존 방식
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (isLoggingOut.current) return
+        if (session?.user) {
+          setUser(session.user)
+          setIsAuthenticated(true)
+          setSidebarRefresh(prev => prev + 1)
+          const isAdminUser = await checkAdminStatus(session.user.id)
+          if (!isAdminUser) {
+            handleLicenseCheck(session.user.id)
+          }
+        }
+      })
+    }
 
     const {
       data: { subscription },
