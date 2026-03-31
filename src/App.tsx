@@ -31,6 +31,7 @@ interface Collaborator {
 function App() {
   const [user, setUser] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [sessionReady, setSessionReady] = useState(false)
   const [isDemoMode, setIsDemoMode] = useState(isSupabaseDemoMode)
   const [currentLayout, setCurrentLayout] = useState('logicalStructure')
   const [currentMapId, setCurrentMapId] = useState<string | null>(null)
@@ -93,47 +94,35 @@ function App() {
   useEffect(() => {
     if (isSupabaseDemoMode) return
 
-    // 자동 로그인: 토큰 즉시 갱신 후 세션 복원
     const isAutoLogin = localStorage.getItem('mindmap_auto_login') === 'true'
-    if (isAutoLogin) {
-      // 저장된 사용자 정보 먼저 표시
-      try {
-        const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
-        if (storageKey) {
-          const stored = JSON.parse(localStorage.getItem(storageKey) || '{}')
-          if (stored?.user) {
-            setUser(stored.user)
-            setIsAuthenticated(true)
-          }
-        }
-      } catch {
-        // 무시
-      }
 
-      // 토큰 강제 갱신 후 사이드바 로드
-      supabase.auth.refreshSession().then(async ({ data: { session } }) => {
-        if (isLoggingOut.current) return
+    if (isAutoLogin) {
+      // 자동 로그인: 토큰 갱신 완료까지 스플래시 표시 후 메인 UI 렌더링
+      const refreshWithTimeout = Promise.race([
+        supabase.auth.refreshSession(),
+        new Promise(resolve => setTimeout(() => resolve({ data: { session: null } }), 5000))
+      ]) as Promise<{ data: { session: { user: User } | null } }>
+
+      refreshWithTimeout.then(async ({ data: { session } }) => {
+        if (isLoggingOut.current) { setSessionReady(true); return }
         if (session?.user) {
           setUser(session.user)
           setIsAuthenticated(true)
           setSidebarRefresh(prev => prev + 1)
+          setSessionReady(true)
           const isAdminUser = await checkAdminStatus(session.user.id)
           if (!isAdminUser) {
             handleLicenseCheck(session.user.id)
           }
+        } else {
+          setSessionReady(true)
         }
       }).catch(() => {
-        // 토큰 갱신 실패 시 getSession 폴백
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-          if (session?.user) {
-            setUser(session.user)
-            setIsAuthenticated(true)
-            setSidebarRefresh(prev => prev + 1)
-          }
-        })
+        setSessionReady(true)
       })
     } else {
-      // 일반 로그인: 기존 방식
+      // 일반 시작: 스플래시 없이 바로 진행
+      setSessionReady(true)
       supabase.auth.getSession().then(async ({ data: { session } }) => {
         if (isLoggingOut.current) return
         if (session?.user) {
@@ -600,6 +589,19 @@ function App() {
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCurrentMapTitle(e.target.value)
+  }
+
+  // 자동 로그인 스플래시 화면
+  if (!sessionReady) {
+    return (
+      <div className="app splash-screen">
+        <div className="splash-content">
+          <h1>MindMap Pro</h1>
+          <p>로그인 중...</p>
+          <div className="splash-spinner" />
+        </div>
+      </div>
+    )
   }
 
   // 공유 링크로 접근한 경우 - 읽기 전용 뷰
