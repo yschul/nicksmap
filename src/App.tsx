@@ -303,11 +303,25 @@ function App() {
     }
   }
 
-  const handleAuthSuccess = () => {
+  const handleAuthSuccess = async () => {
     if (isSupabaseDemoMode) {
       setIsDemoMode(true)
+      setIsAuthenticated(true)
+      return
     }
-    setIsAuthenticated(true)
+
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (authUser) {
+        setUser(authUser)
+        setIsAuthenticated(true)
+        setSidebarRefresh(prev => prev + 1)
+      } else {
+        setIsAuthenticated(true)
+      }
+    } catch {
+      setIsAuthenticated(true)
+    }
   }
 
   const clearSupabaseStorage = () => {
