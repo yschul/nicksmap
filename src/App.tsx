@@ -90,20 +90,23 @@ function App() {
     loadShared()
   }, [])
 
-  // 자동 로그인: localStorage에서 세션을 즉시 읽어 빠르게 표시
   useEffect(() => {
-    if (isSupabaseDemoMode) return
+    if (isSupabaseDemoMode) { setSessionReady(true); return }
 
     const isAutoLogin = localStorage.getItem('mindmap_auto_login') === 'true'
     const autoCred = localStorage.getItem('mindmap_auto_cred')
 
     if (isAutoLogin && autoCred) {
       // 자동 로그인: 저장된 자격증명으로 signInWithPassword 호출
-      try {
-        const { e, p } = JSON.parse(decodeURIComponent(atob(autoCred)))
-        supabase.auth.signInWithPassword({ email: e, password: p }).then(async ({ data, error }) => {
+      const timeout = setTimeout(() => { setSessionReady(true) }, 5000)
+
+      const autoLogin = async () => {
+        try {
+          const { e, p } = JSON.parse(decodeURIComponent(atob(autoCred)))
+          const { data, error } = await supabase.auth.signInWithPassword({ email: e, password: p })
+          clearTimeout(timeout)
+
           if (error || !data.user) {
-            // 로그인 실패 시 자동 로그인 해제하고 로그인 화면으로
             localStorage.removeItem('mindmap_auto_login')
             localStorage.removeItem('mindmap_auto_cred')
             setSessionReady(true)
@@ -117,14 +120,14 @@ function App() {
           if (!isAdminUser) {
             handleLicenseCheck(data.user.id)
           }
-        }).catch(() => {
+        } catch {
+          clearTimeout(timeout)
+          localStorage.removeItem('mindmap_auto_login')
+          localStorage.removeItem('mindmap_auto_cred')
           setSessionReady(true)
-        })
-      } catch {
-        localStorage.removeItem('mindmap_auto_login')
-        localStorage.removeItem('mindmap_auto_cred')
-        setSessionReady(true)
+        }
       }
+      autoLogin()
     } else {
       // 일반 시작: 스플래시 없이 바로 진행
       setSessionReady(true)
