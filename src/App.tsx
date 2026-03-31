@@ -89,9 +89,29 @@ function App() {
     loadShared()
   }, [])
 
+  // 자동 로그인: localStorage에서 세션을 즉시 읽어 빠르게 표시
   useEffect(() => {
     if (isSupabaseDemoMode) return
 
+    // localStorage에서 저장된 세션을 즉시 읽기 (토큰 갱신 없이)
+    const isAutoLogin = localStorage.getItem('mindmap_auto_login') === 'true'
+    if (isAutoLogin) {
+      try {
+        const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
+        if (storageKey) {
+          const stored = JSON.parse(localStorage.getItem(storageKey) || '{}')
+          if (stored?.user) {
+            setUser(stored.user)
+            setIsAuthenticated(true)
+            setSidebarRefresh(prev => prev + 1)
+          }
+        }
+      } catch {
+        // 파싱 실패 시 무시 - getSession이 처리
+      }
+    }
+
+    // Supabase 세션 복원 (토큰 갱신 포함)
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (isLoggingOut.current) return
       if (session?.user) {
@@ -108,7 +128,6 @@ function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      // 로그아웃 중이면 재인증 방지
       if (isLoggingOut.current) return
       if (session?.user) {
         setUser(session.user)

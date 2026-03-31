@@ -75,6 +75,10 @@ export default function Sidebar({
       setMaps(data || [])
     } catch (err) {
       console.error('Failed to load maps:', err)
+      // 토큰 갱신 중일 수 있으므로 3초 후 재시도
+      setTimeout(() => {
+        if (user && !isDemoMode) loadMaps()
+      }, 3000)
     } finally {
       setLoading(false)
     }
