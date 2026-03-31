@@ -31,6 +31,7 @@ interface Collaborator {
 function App() {
   const [user, setUser] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [sessionLoading, setSessionLoading] = useState(true)
   const [isDemoMode, setIsDemoMode] = useState(isSupabaseDemoMode)
   const [currentLayout, setCurrentLayout] = useState('logicalStructure')
   const [currentMapId, setCurrentMapId] = useState<string | null>(null)
@@ -58,6 +59,7 @@ function App() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const isReceivingRemote = useRef(false)
   const isLoggingOut = useRef(false)
+  const hasUnsavedChanges = useRef(false)
 
   // 현재 맵이 로컬인지 확인
   const isLocalMap = currentMapId?.startsWith('local_') ?? false
@@ -88,10 +90,16 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (isSupabaseDemoMode) return
+    if (isSupabaseDemoMode) {
+      setSessionLoading(false)
+      return
+    }
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (isLoggingOut.current) return
+      if (isLoggingOut.current) {
+        setSessionLoading(false)
+        return
+      }
       if (session?.user) {
         setUser(session.user)
         setIsAuthenticated(true)
@@ -100,6 +108,9 @@ function App() {
           handleLicenseCheck(session.user.id)
         }
       }
+      setSessionLoading(false)
+    }).catch(() => {
+      setSessionLoading(false)
     })
 
     const {
@@ -144,6 +155,20 @@ function App() {
         }
       }
       keysToRemove.forEach(key => localStorage.removeItem(key))
+    })
+  }, [])
+
+  // Electron 창 닫기 시 저장 확인
+  useEffect(() => {
+    if (!window.electronAPI?.onCheckUnsaved) return
+
+    window.electronAPI.onCheckUnsaved(() => {
+      window.electronAPI.sendUnsavedStatus(hasUnsavedChanges.current)
+    })
+
+    window.electronAPI.onSaveAndClose(async () => {
+      await handleSave()
+      window.electronAPI.sendSaveDone()
     })
   }, [])
 
@@ -250,6 +275,7 @@ function App() {
   const handleDataChange = useCallback((data: object) => {
     // 원격 수신 중이면 다시 브로드캐스트하지 않음 (순환 방지)
     if (isReceivingRemote.current) return
+    hasUnsavedChanges.current = true
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
     debounceTimer.current = setTimeout(() => {
       broadcastChange(data)
@@ -423,6 +449,7 @@ function App() {
         setCurrentMapId(newMap.id)
       }
       setSidebarRefresh(prev => prev + 1)
+      hasUnsavedChanges.current = false
       showSuccess('클라우드에 저장되었습니다.')
     } catch (err) {
       console.error('Save failed:', err)
@@ -435,6 +462,7 @@ function App() {
   const handleSaveLocal = async (title: string, data: object) => {
     setIsSaving(true)
     try {
+      hasUnsavedChanges.current = false
       // localStorage에 저장 (사이드바 목록용)
       const savedMap = saveLocalMap({
         id: isLocalMap && currentMapId ? currentMapId : undefined,
@@ -494,12 +522,14 @@ function App() {
   }
 
   const handleSelectMap = (map: MindMapData | LocalMindMap) => {
+    hasUnsavedChanges.current = false
     setCurrentMapId(map.id)
     setCurrentMapTitle(map.title)
     mindMapRef.current?.setData(map.data)
   }
 
   const handleNewMap = () => {
+    hasUnsavedChanges.current = false
     setCurrentMapId(null)
     setCurrentMapTitle('새 마인드맵')
     setCollaborators([])
@@ -514,6 +544,15 @@ function App() {
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCurrentMapTitle(e.target.value)
+  }
+
+  // 세션 확인 중 로딩 화면
+  if (sessionLoading) {
+    return (
+      <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p>로딩 중...</p>
+      </div>
+    )
   }
 
   // 공유 링크로 접근한 경우 - 읽기 전용 뷰

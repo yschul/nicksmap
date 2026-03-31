@@ -76,9 +76,51 @@ function createWindow() {
   ])
   Menu.setApplicationMenu(menu)
 
-  // 창 닫을 때 세션 정리 (자동 로그아웃)
-  win.on('close', () => {
-    win.webContents.send('app-closing')
+  // 창 닫을 때 저장 확인 + 세션 정리
+  let forceClose = false
+  win.on('close', async (e) => {
+    if (forceClose) {
+      win.webContents.send('app-closing')
+      return
+    }
+
+    e.preventDefault()
+
+    // 렌더러에 변경사항 확인 요청
+    win.webContents.send('check-unsaved')
+  })
+
+  ipcMain.on('unsaved-status', (_event, hasChanges) => {
+    if (!hasChanges) {
+      forceClose = true
+      win.close()
+      return
+    }
+
+    dialog.showMessageBox(win, {
+      type: 'warning',
+      title: '저장 확인',
+      message: '저장하지 않은 변경사항이 있습니다.',
+      detail: '저장하시겠습니까?',
+      buttons: ['저장', '저장하지 않고 닫기', '취소'],
+      defaultId: 0,
+      cancelId: 2,
+    }).then(({ response }) => {
+      if (response === 0) {
+        // 저장 후 닫기
+        win.webContents.send('save-and-close')
+      } else if (response === 1) {
+        // 저장하지 않고 닫기
+        forceClose = true
+        win.close()
+      }
+      // response === 2: 취소 (아무것도 안 함)
+    })
+  })
+
+  ipcMain.on('save-done', () => {
+    forceClose = true
+    win.close()
   })
 
   if (isDev) {
