@@ -128,10 +128,13 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Electron 앱 종료 시 자동 로그아웃
+  // Electron 앱 종료 시 자동 로그아웃 (자동 로그인이 아닌 경우)
   useEffect(() => {
     if (!window.electronAPI?.onAppClosing) return
     window.electronAPI.onAppClosing(() => {
+      const isAutoLogin = localStorage.getItem('mindmap_auto_login') === 'true'
+      if (isAutoLogin) return
+
       // Supabase 관련 localStorage 삭제
       const keysToRemove: string[] = []
       for (let i = 0; i < localStorage.length; i++) {
@@ -312,6 +315,7 @@ function App() {
     }
 
     // 2. 로컬 스토리지 먼저 삭제 (signOut 실패해도 세션 제거됨)
+    localStorage.removeItem('mindmap_auto_login')
     clearSupabaseStorage()
     clearLicense()
 

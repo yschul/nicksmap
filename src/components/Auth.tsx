@@ -8,6 +8,7 @@ interface AuthProps {
 
 const SAVED_EMAIL_KEY = 'mindmap_saved_email'
 const REMEMBER_EMAIL_KEY = 'mindmap_remember_email'
+export const AUTO_LOGIN_KEY = 'mindmap_auto_login'
 
 export default function Auth({ onAuthSuccess }: AuthProps) {
   const [isLogin, setIsLogin] = useState(true)
@@ -19,6 +20,9 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   const [licenseKey, setLicenseKey] = useState('')
   const [rememberEmail, setRememberEmail] = useState(() => {
     return localStorage.getItem(REMEMBER_EMAIL_KEY) === 'true'
+  })
+  const [autoLogin, setAutoLogin] = useState(() => {
+    return localStorage.getItem(AUTO_LOGIN_KEY) === 'true'
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -60,6 +64,13 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       } else {
         localStorage.removeItem(SAVED_EMAIL_KEY)
         localStorage.removeItem(REMEMBER_EMAIL_KEY)
+      }
+
+      // 자동 로그인 처리
+      if (autoLogin) {
+        localStorage.setItem(AUTO_LOGIN_KEY, 'true')
+      } else {
+        localStorage.removeItem(AUTO_LOGIN_KEY)
       }
 
       onAuthSuccess()
@@ -166,16 +177,29 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
             </form>
 
             {isLogin && (
-              <div
-                className="remember-email"
-                onClick={() => setRememberEmail(!rememberEmail)}
-              >
-                <input
-                  type="checkbox"
-                  checked={rememberEmail}
-                  readOnly
-                />
-                <span>아이디 저장</span>
+              <div className="remember-options">
+                <div
+                  className="remember-email"
+                  onClick={() => setRememberEmail(!rememberEmail)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={rememberEmail}
+                    readOnly
+                  />
+                  <span>아이디 저장</span>
+                </div>
+                <div
+                  className="remember-email"
+                  onClick={() => setAutoLogin(!autoLogin)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={autoLogin}
+                    readOnly
+                  />
+                  <span>자동 로그인</span>
+                </div>
               </div>
             )}
 
