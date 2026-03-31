@@ -112,6 +112,7 @@ function App() {
       if (session?.user) {
         setUser(session.user)
         setIsAuthenticated(true)
+        setSidebarRefresh(prev => prev + 1)
         const isAdminUser = await checkAdminStatus(session.user.id)
         if (!isAdminUser) {
           handleLicenseCheck(session.user.id)
