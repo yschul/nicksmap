@@ -62,6 +62,7 @@ declare module 'simple-mind-map/full.js' {
     execCommand: (command: string, ...args: unknown[]) => void
     export: (type: string, isDownload: boolean, filename: string) => void
     destroy: () => void
+    resize: () => void
     on: (event: string, callback: (...args: unknown[]) => void) => void
     off: (event: string, callback?: (...args: unknown[]) => void) => void
     static usePlugin: (plugin: unknown) => typeof MindMap
@@ -132,6 +133,7 @@ declare module 'simple-mind-map' {
     execCommand: (command: string, ...args: unknown[]) => void
     export: (type: string, isDownload: boolean, filename: string) => void
     destroy: () => void
+    resize: () => void
     on: (event: string, callback: (data?: unknown) => void) => void
     off: (event: string, callback?: (data?: unknown) => void) => void
     static usePlugin: (plugin: unknown) => void

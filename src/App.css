@@ -642,6 +642,23 @@ body {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
 }
 
+.remember-email {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #666;
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember-email input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
 .auth-error {
   padding: 12px;
   background: #ffebee;
@@ -1476,4 +1493,502 @@ body {
 
 .license-expired-actions .btn-primary:hover {
   transform: translateY(-2px);
+}
+
+/* License Card UI */
+.license-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.license-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.license-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.license-card.disabled {
+  opacity: 0.6;
+}
+
+.license-card.expired {
+  border-color: #fff3cd;
+}
+
+.license-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.license-card-header:hover {
+  background: #fafafa;
+}
+
+.license-card-toggle {
+  color: #888;
+  flex-shrink: 0;
+}
+
+.license-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.license-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.license-card-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.license-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.license-key-display {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #888;
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.license-card-stats {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.text-danger {
+  color: #dc3545 !important;
+}
+
+.license-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.license-card-body {
+  border-top: 1px solid #eee;
+  padding: 16px;
+  background: #fafafa;
+}
+
+.license-members-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.license-members-header h4 {
+  font-size: 0.9rem;
+  color: #555;
+  font-weight: 600;
+}
+
+.btn-small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  border-radius: 5px;
+}
+
+.btn-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.empty-members {
+  text-align: center;
+  padding: 20px;
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.members-table {
+  font-size: 0.9rem;
+}
+
+.members-table th,
+.members-table td {
+  padding: 8px 12px;
+}
+
+.row-disabled {
+  opacity: 0.5;
+}
+
+.inline-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.inline-edit input {
+  padding: 4px 8px;
+  border: 1px solid #667eea;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  width: 180px;
+}
+
+.license-name-tag {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 2px 8px;
+  background: #e8f0fe;
+  color: #667eea;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* 임시 비밀번호 표시 */
+.temp-password-box {
+  margin: 15px 0;
+}
+
+.temp-password-box label {
+  display: block;
+  font-size: 0.85rem;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.temp-password-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f0f4ff;
+  border: 2px dashed #667eea;
+  border-radius: 8px;
+}
+
+.temp-password-display code {
+  font-family: monospace;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #333;
+  letter-spacing: 1px;
+  flex: 1;
+}
+
+/* 비밀번호 변경 모달 */
+.change-password-modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.change-password-icon {
+  width: 70px;
+  height: 70px;
+  margin: 0 auto 16px;
+  background: #e8f0fe;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #667eea;
+}
+
+.change-password-modal h2 {
+  margin: 0 0 10px;
+  color: #333;
+  font-size: 1.4rem;
+}
+
+.change-password-desc {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.change-password-form {
+  text-align: left;
+}
+
+.change-password-form .form-group {
+  margin-bottom: 16px;
+}
+
+.change-password-form label {
+  display: block;
+  font-size: 0.85rem;
+  color: #555;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrap input {
+  width: 100%;
+  padding: 10px 40px 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.password-input-wrap input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.change-password-error {
+  color: #dc3545;
+  font-size: 0.85rem;
+  background: #f8d7da;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.change-password-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 12px;
+  font-size: 1rem;
+}
+
+.change-password-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 제목 입력 모달 */
+.title-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 360px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.title-modal h3 {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.title-modal input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.title-modal input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.title-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* AppModal - 전역 alert/confirm */
+.app-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.app-modal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 30px;
+  min-width: 320px;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+  animation: modalIn 0.15s ease-out;
+}
+
+@keyframes modalIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.app-modal-icon {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.app-modal-icon.info { background: #e8f0fe; color: #667eea; }
+.app-modal-icon.warning { background: #fff3cd; color: #856404; }
+.app-modal-icon.success { background: #d4edda; color: #155724; }
+.app-modal-icon.error { background: #f8d7da; color: #721c24; }
+
+.app-modal-message {
+  color: #333;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 24px;
+  white-space: pre-line;
+}
+
+.app-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.app-modal-actions .btn-primary,
+.app-modal-actions .btn-secondary {
+  min-width: 80px;
+  justify-content: center;
+}
+
+/* Toast 알림 */
+.app-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10001;
+  animation: toastIn 0.3s ease-out;
+}
+
+@keyframes toastIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.app-toast-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  font-size: 0.9rem;
+  color: #fff;
+}
+
+.app-toast.success .app-toast-content { background: #28a745; }
+.app-toast.error .app-toast-content { background: #dc3545; }
+
+.app-toast-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 2px;
+}
+
+.app-toast-close:hover { color: #fff; }
+
+/* 공유 모달 */
+.share-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #888;
+  font-size: 0.9rem;
+  padding: 12px 0;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.share-empty {
+  color: #999;
+  font-size: 0.9rem;
+  padding: 12px 0;
+}
+
+.shared-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shared-user-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.shared-user-email {
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.btn-icon.danger.small {
+  padding: 4px;
 }

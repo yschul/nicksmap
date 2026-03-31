@@ -20,6 +20,7 @@ export type MindMapData = {
   updated_at: string
   is_shared: boolean
   shared_with: string[]
+  share_token?: string | null
 }
 
 export type UserProfile = {

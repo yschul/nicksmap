@@ -7,6 +7,7 @@ interface MindMapEditorProps {
   initialData?: object
   layout?: string
   theme?: object
+  readOnly?: boolean
 }
 
 export interface MindMapEditorRef {
@@ -65,7 +66,7 @@ const defaultData = {
 }
 
 const MindMapEditor = forwardRef<MindMapEditorRef, MindMapEditorProps>(
-  ({ onDataChange, initialData, layout = 'logicalStructure' }, ref) => {
+  ({ onDataChange, initialData, layout = 'logicalStructure', readOnly = false }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null)
     const mindMapRef = useRef<MindMap | null>(null)
 
@@ -255,15 +256,12 @@ const MindMapEditor = forwardRef<MindMapEditorRef, MindMapEditorProps>(
           shape: 'roundedRectangle',
           hoverRectColor: 'rgb(94, 200, 248)',
         },
-        enableFreeDrag: true,
+        readonly: readOnly,
+        enableFreeDrag: !readOnly,
         mousewheelAction: 'zoom',
         mouseScaleCenterUseMousePosition: true,
         maxTag: 5,
         expandBtnSize: 20,
-        expandBtnIcon: {
-          open: '-',
-          close: '+',
-        },
         enableShortcutOnlyWhenMouseInSvg: true,
         enableNodeTransitionMove: true,
         nodeTransitionMoveDuration: 300,
@@ -274,6 +272,7 @@ const MindMapEditor = forwardRef<MindMapEditorRef, MindMapEditorProps>(
         nodeNoteTooltipZIndex: 3000,
         isUseCustomNodeContent: false,
         customCreateNodeContent: null,
+        isLimitMindMapInCanvasWhenHasScrollbar: false,
       })
 
       mindMapRef.current = mindMap
@@ -370,12 +369,21 @@ const MindMapEditor = forwardRef<MindMapEditorRef, MindMapEditorProps>(
         }
       }
 
+      // 창 크기 변경 시 마인드맵 리사이즈
+      const handleResize = () => {
+        if (mindMapRef.current) {
+          mindMapRef.current.resize()
+        }
+      }
+
       // 이벤트 리스너 등록
+      window.addEventListener('resize', handleResize)
       document.addEventListener('paste', handlePaste)
       containerRef.current?.addEventListener('dragover', handleDragOver)
       containerRef.current?.addEventListener('drop', handleDrop)
 
       return () => {
+        window.removeEventListener('resize', handleResize)
         document.removeEventListener('paste', handlePaste)
         containerRef.current?.removeEventListener('dragover', handleDragOver)
         containerRef.current?.removeEventListener('drop', handleDrop)

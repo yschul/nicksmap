@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabase'
 import type { MindMapData } from '../lib/supabase'
 import { getLocalMaps, deleteLocalMap, type LocalMindMap } from '../lib/localStorage'
 import type { User } from '@supabase/supabase-js'
+import { useAppModal } from './AppModal'
 
 interface SidebarProps {
   user: User | null
@@ -43,15 +44,16 @@ export default function Sidebar({
   const [maps, setMaps] = useState<MindMapData[]>([])
   const [localMaps, setLocalMaps] = useState<LocalMindMap[]>([])
   const [loading, setLoading] = useState(false)
+  const { showConfirm } = useAppModal()
 
-  // 클라우드 맵 로드
+  // 클라우드 맵 로드 (refreshTrigger 변경 시에도 다시 로드)
   useEffect(() => {
     if (user && !isDemoMode) {
       loadMaps()
     } else {
       setLoading(false)
     }
-  }, [user, isDemoMode])
+  }, [user, isDemoMode, refreshTrigger])
 
   // 로컬 맵 로드
   useEffect(() => {
@@ -85,7 +87,7 @@ export default function Sidebar({
 
   const handleDeleteMap = async (mapId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!confirm('이 마인드맵을 삭제하시겠습니까?')) return
+    if (!await showConfirm('이 마인드맵을 삭제하시겠습니까?')) return
 
     try {
       const { error } = await supabase.from('mindmaps').delete().eq('id', mapId)
@@ -96,9 +98,9 @@ export default function Sidebar({
     }
   }
 
-  const handleDeleteLocalMap = (mapId: string, e: React.MouseEvent) => {
+  const handleDeleteLocalMap = async (mapId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!confirm('이 로컬 마인드맵을 삭제하시겠습니까?')) return
+    if (!await showConfirm('이 로컬 마인드맵을 삭제하시겠습니까?')) return
 
     deleteLocalMap(mapId)
     loadLocalMaps()

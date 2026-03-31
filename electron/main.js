@@ -1,7 +1,13 @@
-const { app, BrowserWindow, Menu } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron')
+const { autoUpdater } = require('electron-updater')
 const path = require('path')
+const fs = require('fs')
 
 const isDev = process.env.NODE_ENV === 'development'
+
+// 자동 업데이트 설정
+autoUpdater.autoDownload = false
+autoUpdater.autoInstallOnAppQuit = true
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -12,6 +18,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
     icon: path.join(__dirname, '../public/icon.png'),
     title: 'MindMap Pro',
@@ -59,7 +66,7 @@ function createWindow() {
           dialog.showMessageBox(win, {
             type: 'info',
             title: 'MindMap Pro',
-            message: 'MindMap Pro v1.0.0',
+            message: 'MindMap Pro v1.1.0',
             detail: '협업 마인드맵 도구\n\n© 2024 MindMap Pro',
           })
         }},
@@ -67,6 +74,11 @@ function createWindow() {
     },
   ])
   Menu.setApplicationMenu(menu)
+
+  // 창 닫을 때 세션 정리 (자동 로그아웃)
+  win.on('close', () => {
+    win.webContents.send('app-closing')
+  })
 
   if (isDev) {
     win.loadURL('http://localhost:5173')
@@ -76,7 +88,117 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow)
+// IPC: 파일 저장 다이얼로그
+ipcMain.handle('save-file', async (_event, defaultName, data) => {
+  const win = BrowserWindow.getFocusedWindow()
+  const result = await dialog.showSaveDialog(win, {
+    title: '마인드맵 저장',
+    defaultPath: defaultName,
+    filters: [
+      { name: 'MindMap JSON', extensions: ['json'] },
+      { name: '모든 파일', extensions: ['*'] },
+    ],
+  })
+
+  if (result.canceled || !result.filePath) return { success: false }
+
+  try {
+    fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), 'utf-8')
+    return { success: true, filePath: result.filePath }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+})
+
+// IPC: 파일 열기 다이얼로그
+ipcMain.handle('open-file', async () => {
+  const win = BrowserWindow.getFocusedWindow()
+  const result = await dialog.showOpenDialog(win, {
+    title: '마인드맵 열기',
+    filters: [
+      { name: 'MindMap JSON', extensions: ['json'] },
+      { name: '모든 파일', extensions: ['*'] },
+    ],
+    properties: ['openFile'],
+  })
+
+  if (result.canceled || result.filePaths.length === 0) return { success: false }
+
+  try {
+    const content = fs.readFileSync(result.filePaths[0], 'utf-8')
+    return { success: true, data: JSON.parse(content), filePath: result.filePaths[0] }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+})
+
+app.whenReady().then(() => {
+  createWindow()
+
+  // 개발 모드에서는 업데이트 체크 안 함
+  if (!isDev) {
+    // 앱 시작 후 3초 뒤 업데이트 확인
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch(() => {})
+    }, 3000)
+  }
+})
+
+// 자동 업데이트 이벤트
+autoUpdater.on('update-available', (info) => {
+  const win = BrowserWindow.getFocusedWindow()
+  if (!win) return
+
+  dialog.showMessageBox(win, {
+    type: 'info',
+    title: '업데이트 알림',
+    message: `새 버전 (v${info.version})이 있습니다.`,
+    detail: '지금 다운로드하시겠습니까?',
+    buttons: ['다운로드', '나중에'],
+    defaultId: 0,
+  }).then(({ response }) => {
+    if (response === 0) {
+      autoUpdater.downloadUpdate()
+      win.webContents.send('update-status', '업데이트 다운로드 중...')
+    }
+  })
+})
+
+autoUpdater.on('update-not-available', () => {
+  // 최신 버전 사용 중 - 조용히 넘어감
+})
+
+autoUpdater.on('download-progress', (progress) => {
+  const win = BrowserWindow.getFocusedWindow()
+  if (win) {
+    const percent = Math.round(progress.percent)
+    win.setTitle(`MindMap Pro - 업데이트 다운로드 중 ${percent}%`)
+  }
+})
+
+autoUpdater.on('update-downloaded', () => {
+  const win = BrowserWindow.getFocusedWindow()
+  if (win) {
+    win.setTitle('MindMap Pro')
+  }
+
+  dialog.showMessageBox({
+    type: 'info',
+    title: '업데이트 준비 완료',
+    message: '업데이트가 다운로드되었습니다.',
+    detail: '앱을 재시작하면 업데이트가 적용됩니다.',
+    buttons: ['지금 재시작', '나중에'],
+    defaultId: 0,
+  }).then(({ response }) => {
+    if (response === 0) {
+      autoUpdater.quitAndInstall()
+    }
+  })
+})
+
+autoUpdater.on('error', (err) => {
+  console.error('Auto-update error:', err)
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

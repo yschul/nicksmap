@@ -6,11 +6,20 @@ interface AuthProps {
   onAuthSuccess: () => void
 }
 
+const SAVED_EMAIL_KEY = 'mindmap_saved_email'
+const REMEMBER_EMAIL_KEY = 'mindmap_remember_email'
+
 export default function Auth({ onAuthSuccess }: AuthProps) {
   const [isLogin, setIsLogin] = useState(true)
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => {
+    const saved = localStorage.getItem(SAVED_EMAIL_KEY)
+    return saved || ''
+  })
   const [password, setPassword] = useState('')
   const [licenseKey, setLicenseKey] = useState('')
+  const [rememberEmail, setRememberEmail] = useState(() => {
+    return localStorage.getItem(REMEMBER_EMAIL_KEY) === 'true'
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -44,6 +53,15 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         })
         if (error) throw error
       }
+      // 아이디 저장 처리
+      if (rememberEmail) {
+        localStorage.setItem(SAVED_EMAIL_KEY, email)
+        localStorage.setItem(REMEMBER_EMAIL_KEY, 'true')
+      } else {
+        localStorage.removeItem(SAVED_EMAIL_KEY)
+        localStorage.removeItem(REMEMBER_EMAIL_KEY)
+      }
+
       onAuthSuccess()
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류가 발생했습니다')
@@ -122,7 +140,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="비밀번호를 입력하세요"
                   required
-                  minLength={6}
                 />
               </div>
 
@@ -147,6 +164,20 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                 {loading ? '처리 중...' : isLogin ? '로그인' : '회원가입'}
               </button>
             </form>
+
+            {isLogin && (
+              <div
+                className="remember-email"
+                onClick={() => setRememberEmail(!rememberEmail)}
+              >
+                <input
+                  type="checkbox"
+                  checked={rememberEmail}
+                  readOnly
+                />
+                <span>아이디 저장</span>
+              </div>
+            )}
 
             <div className="auth-divider">
               <span>또는</span>

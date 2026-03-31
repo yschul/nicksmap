@@ -23,6 +23,7 @@ import {
   Cloud,
 } from 'lucide-react'
 import { LAYOUT_TYPES, BRANCH_STYLES, ICON_LIST, COLOR_PALETTE } from '../types'
+import { useAppModal } from './AppModal'
 import type { MindMapEditorRef } from './MindMapEditor'
 
 interface ToolbarProps {
@@ -52,6 +53,7 @@ export default function Toolbar({
   onLayoutChange,
   isDemoMode = false,
 }: ToolbarProps) {
+  const { showAlert } = useAppModal()
   const [showLayoutMenu, setShowLayoutMenu] = useState(false)
   const [showBranchMenu, setShowBranchMenu] = useState(false)
   const [showColorMenu, setShowColorMenu] = useState(false)
@@ -101,16 +103,25 @@ export default function Toolbar({
     setShowColorMenu(false)
   }
 
+  const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const url = event.target?.result as string
-        mindMapRef.current?.addImage(url)
-      }
-      reader.readAsDataURL(file)
+    if (!file) return
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      showAlert(`이미지 크기가 너무 큽니다.\n최대 5MB까지 업로드 가능합니다.\n(현재: ${(file.size / 1024 / 1024).toFixed(1)}MB)`)
+      e.target.value = ''
+      return
     }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const url = event.target?.result as string
+      mindMapRef.current?.addImage(url)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
   }
 
   const handleIconSelect = (icon: string) => {
@@ -140,7 +151,7 @@ export default function Toolbar({
       setImageSize({ width: currentSize.width, height: currentSize.height })
       setShowImageSizeModal(true)
     } else {
-      alert('먼저 이미지가 있는 노드를 선택하세요.')
+      showAlert('먼저 이미지가 있는 노드를 선택하세요.')
     }
   }
 

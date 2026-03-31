@@ -1,9 +1,8 @@
-// 오프라인 라이선스 검증 유틸리티
+// 오프라인 라이선스 검증 유틸리티 (AES-256-GCM + HMAC-SHA256)
 const LICENSE_STORAGE_KEY = 'mindmap_license_data'
 const LAST_TIME_KEY = 'mindmap_last_used_time'
 
-// 간단한 암호화 (실제 프로덕션에서는 더 강력한 암호화 사용 권장)
-const SECRET_KEY = 'MindMapPro2024SecretKey!'
+const SECRET_KEY = import.meta.env.VITE_LICENSE_SECRET || 'MindMapPro2024DefaultFallbackKey!'
 
 export interface LicenseData {
   userId: string
@@ -21,64 +20,110 @@ export interface LicenseStatus {
   expiresAt?: Date
 }
 
-// 간단한 XOR 기반 암호화 (실제로는 AES 등 사용 권장)
-const encrypt = (text: string): string => {
-  let result = ''
-  for (let i = 0; i < text.length; i++) {
-    result += String.fromCharCode(
-      text.charCodeAt(i) ^ SECRET_KEY.charCodeAt(i % SECRET_KEY.length)
-    )
-  }
-  return btoa(result) // Base64 인코딩
+// --- Web Crypto 기반 암호화 ---
+
+const getKeyMaterial = async (): Promise<CryptoKey> => {
+  const enc = new TextEncoder()
+  return crypto.subtle.importKey(
+    'raw',
+    enc.encode(SECRET_KEY),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey']
+  )
 }
 
-const decrypt = (encoded: string): string => {
+const deriveKey = async (salt: Uint8Array): Promise<CryptoKey> => {
+  const keyMaterial = await getKeyMaterial()
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: salt.buffer as ArrayBuffer, iterations: 100000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  )
+}
+
+const encrypt = async (text: string): Promise<string> => {
+  const enc = new TextEncoder()
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const key = await deriveKey(salt)
+
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    enc.encode(text)
+  )
+
+  // salt(16) + iv(12) + ciphertext → Base64
+  const combined = new Uint8Array(salt.length + iv.length + new Uint8Array(encrypted).length)
+  combined.set(salt, 0)
+  combined.set(iv, salt.length)
+  combined.set(new Uint8Array(encrypted), salt.length + iv.length)
+
+  return btoa(String.fromCharCode(...combined))
+}
+
+const decrypt = async (encoded: string): Promise<string> => {
   try {
-    const text = atob(encoded) // Base64 디코딩
-    let result = ''
-    for (let i = 0; i < text.length; i++) {
-      result += String.fromCharCode(
-        text.charCodeAt(i) ^ SECRET_KEY.charCodeAt(i % SECRET_KEY.length)
-      )
-    }
-    return result
+    const combined = Uint8Array.from(atob(encoded), c => c.charCodeAt(0))
+    const salt = combined.slice(0, 16)
+    const iv = combined.slice(16, 28)
+    const ciphertext = combined.slice(28)
+
+    const key = await deriveKey(salt)
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      ciphertext
+    )
+
+    return new TextDecoder().decode(decrypted)
   } catch {
     return ''
   }
 }
 
-// 서명 생성 (위변조 방지)
-const createSignature = (data: Omit<LicenseData, 'signature'>): string => {
+// --- HMAC-SHA256 서명 ---
+
+const createSignature = async (data: Omit<LicenseData, 'signature'>): Promise<string> => {
+  const enc = new TextEncoder()
   const payload = `${data.userId}|${data.email}|${data.licenseKey}|${data.expiresAt}|${SECRET_KEY}`
-  // 간단한 해시 (실제로는 HMAC-SHA256 등 사용)
-  let hash = 0
-  for (let i = 0; i < payload.length; i++) {
-    const char = payload.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash
-  }
-  return Math.abs(hash).toString(16)
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(SECRET_KEY),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+
+  const signature = await crypto.subtle.sign('HMAC', key, enc.encode(payload))
+  return Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
-// 서명 검증
-const verifySignature = (data: LicenseData): boolean => {
-  const expectedSignature = createSignature({
+const verifySignature = async (data: LicenseData): Promise<boolean> => {
+  const expected = await createSignature({
     userId: data.userId,
     email: data.email,
     licenseKey: data.licenseKey,
     expiresAt: data.expiresAt,
     lastVerified: data.lastVerified,
   })
-  return data.signature === expectedSignature
+  return data.signature === expected
 }
 
-// 라이선스 저장 (로그인 성공 시 호출)
-export const saveLicense = (
+// --- 라이선스 저장/로드/삭제 ---
+
+export const saveLicense = async (
   userId: string,
   email: string,
   licenseKey: string,
   expiresAt: string
-): void => {
+): Promise<void> => {
   const now = new Date().toISOString()
 
   const licenseData: Omit<LicenseData, 'signature'> = {
@@ -89,24 +134,20 @@ export const saveLicense = (
     lastVerified: now,
   }
 
-  const signature = createSignature(licenseData)
+  const signature = await createSignature(licenseData)
   const fullData: LicenseData = { ...licenseData, signature }
 
-  // 암호화하여 저장
-  const encrypted = encrypt(JSON.stringify(fullData))
+  const encrypted = await encrypt(JSON.stringify(fullData))
   localStorage.setItem(LICENSE_STORAGE_KEY, encrypted)
-
-  // 마지막 사용 시간 저장
   localStorage.setItem(LAST_TIME_KEY, now)
 }
 
-// 라이선스 불러오기
-export const loadLicense = (): LicenseData | null => {
+export const loadLicense = async (): Promise<LicenseData | null> => {
   try {
     const encrypted = localStorage.getItem(LICENSE_STORAGE_KEY)
     if (!encrypted) return null
 
-    const decrypted = decrypt(encrypted)
+    const decrypted = await decrypt(encrypted)
     if (!decrypted) return null
 
     return JSON.parse(decrypted)
@@ -115,13 +156,13 @@ export const loadLicense = (): LicenseData | null => {
   }
 }
 
-// 라이선스 삭제 (로그아웃 시)
 export const clearLicense = (): void => {
   localStorage.removeItem(LICENSE_STORAGE_KEY)
   localStorage.removeItem(LAST_TIME_KEY)
 }
 
-// 시간 조작 감지
+// --- 시간 조작 감지 ---
+
 const detectTimeManipulation = (): { isManipulated: boolean; reason?: string } => {
   const lastUsedStr = localStorage.getItem(LAST_TIME_KEY)
   if (!lastUsedStr) {
@@ -131,32 +172,24 @@ const detectTimeManipulation = (): { isManipulated: boolean; reason?: string } =
   const lastUsed = new Date(lastUsedStr)
   const now = new Date()
 
-  // 현재 시간이 마지막 사용 시간보다 1시간 이상 과거면 조작으로 간주
   const hourInMs = 60 * 60 * 1000
   if (now.getTime() < lastUsed.getTime() - hourInMs) {
     return {
       isManipulated: true,
-      reason: `시스템 시간이 과거로 변경되었습니다. (마지막 사용: ${lastUsed.toLocaleString()})`
+      reason: `시스템 시간이 과거로 변경되었습니다. (마지막 사용: ${lastUsed.toLocaleString()})`,
     }
-  }
-
-  // 마지막 사용 시간으로부터 1년 이상 지났으면 의심
-  const yearInMs = 365 * 24 * 60 * 60 * 1000
-  if (now.getTime() > lastUsed.getTime() + yearInMs) {
-    // 이 경우는 정상적일 수 있으므로 경고만
-    console.warn('마지막 사용으로부터 1년 이상 경과했습니다.')
   }
 
   return { isManipulated: false }
 }
 
-// 마지막 사용 시간 업데이트
 export const updateLastUsedTime = (): void => {
   localStorage.setItem(LAST_TIME_KEY, new Date().toISOString())
 }
 
-// 라이선스 검증 (앱 시작 시 호출)
-export const verifyLicense = (): LicenseStatus => {
+// --- 라이선스 검증 (앱 시작 시) ---
+
+export const verifyLicense = async (): Promise<LicenseStatus> => {
   // 1. 시간 조작 감지
   const timeCheck = detectTimeManipulation()
   if (timeCheck.isManipulated) {
@@ -168,7 +201,7 @@ export const verifyLicense = (): LicenseStatus => {
   }
 
   // 2. 라이선스 데이터 불러오기
-  const license = loadLicense()
+  const license = await loadLicense()
   if (!license) {
     return {
       isValid: false,
@@ -178,7 +211,7 @@ export const verifyLicense = (): LicenseStatus => {
   }
 
   // 3. 서명 검증 (위변조 체크)
-  if (!verifySignature(license)) {
+  if (!await verifySignature(license)) {
     return {
       isValid: false,
       daysRemaining: 0,
@@ -219,56 +252,85 @@ export const verifyLicense = (): LicenseStatus => {
   }
 }
 
-// 온라인 시 라이선스 갱신 (서버와 동기화)
+// --- 온라인 라이선스 갱신 ---
+
 export const refreshLicense = async (
   supabase: any,
   userId: string
 ): Promise<LicenseStatus> => {
   try {
-    const { data, error } = await supabase
+    // 1. 프로필 기본 정보 조회
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('license_key, license_expires_at, email')
+      .select('email, license_key, license_expires_at')
       .eq('id', userId)
       .single()
 
-    if (error || !data) {
+    if (profileError || !profile) {
       return {
         isValid: false,
         daysRemaining: 0,
-        message: '라이선스 정보를 가져올 수 없습니다.',
+        message: '사용자 정보를 가져올 수 없습니다.',
       }
     }
 
-    // 라이선스가 없는 경우
-    if (!data.license_key || !data.license_expires_at) {
-      clearLicense()
-      return {
-        isValid: false,
-        daysRemaining: 0,
-        message: '할당된 라이선스가 없습니다. 관리자에게 문의하세요.',
+    // 2. license_members에서 활성 멤버십 조회
+    const { data: membership } = await supabase
+      .from('license_members')
+      .select('*, licenses(*)')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+
+    if (membership && membership.length > 0) {
+      const activeMembership = membership.find(
+        (m: any) => m.licenses?.is_active && new Date(m.licenses.expires_at) > new Date()
+      )
+
+      if (activeMembership) {
+        const license = activeMembership.licenses
+        if (profile.license_key !== license.license_key) {
+          await supabase
+            .from('profiles')
+            .update({
+              license_key: license.license_key,
+              license_expires_at: license.expires_at,
+            })
+            .eq('id', userId)
+        }
+
+        await saveLicense(userId, profile.email, license.license_key, license.expires_at)
+        return verifyLicense()
       }
     }
 
-    // 라이선스 정보 로컬 저장
-    saveLicense(userId, data.email, data.license_key, data.license_expires_at)
+    // 3. profiles에 라이선스 정보가 있는 경우 (직접 할당 또는 하위 호환)
+    if (profile.license_key && profile.license_expires_at) {
+      await saveLicense(userId, profile.email, profile.license_key, profile.license_expires_at)
+      return verifyLicense()
+    }
 
-    // 검증 후 반환
-    return verifyLicense()
+    // 4. 라이선스가 없는 경우
+    clearLicense()
+    return {
+      isValid: false,
+      daysRemaining: 0,
+      message: '할당된 라이선스가 없습니다. 관리자에게 문의하세요.',
+    }
   } catch (err) {
     console.error('License refresh failed:', err)
-    // 오프라인이면 로컬 라이선스로 검증
     return verifyLicense()
   }
 }
 
-// 라이선스 정보 가져오기 (UI 표시용)
-export const getLicenseInfo = (): {
+// --- UI 표시용 ---
+
+export const getLicenseInfo = async (): Promise<{
   email?: string
   licenseKey?: string
   expiresAt?: string
   lastVerified?: string
-} | null => {
-  const license = loadLicense()
+} | null> => {
+  const license = await loadLicense()
   if (!license) return null
 
   return {
