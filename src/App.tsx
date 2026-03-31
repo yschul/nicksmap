@@ -163,12 +163,12 @@ function App() {
     if (!window.electronAPI?.onCheckUnsaved) return
 
     window.electronAPI.onCheckUnsaved(() => {
-      window.electronAPI.sendUnsavedStatus(hasUnsavedChanges.current)
+      window.electronAPI!.sendUnsavedStatus(hasUnsavedChanges.current)
     })
 
     window.electronAPI.onSaveAndClose(async () => {
       await handleSave()
-      window.electronAPI.sendSaveDone()
+      window.electronAPI!.sendSaveDone()
     })
   }, [])
 
