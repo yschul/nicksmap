@@ -8,7 +8,8 @@ interface AuthProps {
 
 const SAVED_EMAIL_KEY = 'mindmap_saved_email'
 const REMEMBER_EMAIL_KEY = 'mindmap_remember_email'
-export const AUTO_LOGIN_KEY = 'mindmap_auto_login'
+const SAVED_PASSWORD_KEY = 'mindmap_saved_password'
+const REMEMBER_PASSWORD_KEY = 'mindmap_remember_password'
 
 export default function Auth({ onAuthSuccess }: AuthProps) {
   const [isLogin, setIsLogin] = useState(true)
@@ -16,13 +17,19 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     const saved = localStorage.getItem(SAVED_EMAIL_KEY)
     return saved || ''
   })
-  const [password, setPassword] = useState('')
+  const [password, setPassword] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SAVED_PASSWORD_KEY)
+      if (saved) return decodeURIComponent(atob(saved))
+    } catch { /* 무시 */ }
+    return ''
+  })
   const [licenseKey, setLicenseKey] = useState('')
   const [rememberEmail, setRememberEmail] = useState(() => {
     return localStorage.getItem(REMEMBER_EMAIL_KEY) === 'true'
   })
-  const [autoLogin, setAutoLogin] = useState(() => {
-    return localStorage.getItem(AUTO_LOGIN_KEY) === 'true'
+  const [rememberPassword, setRememberPassword] = useState(() => {
+    return localStorage.getItem(REMEMBER_PASSWORD_KEY) === 'true'
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -57,6 +64,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         })
         if (error) throw error
       }
+
       // 아이디 저장 처리
       if (rememberEmail) {
         localStorage.setItem(SAVED_EMAIL_KEY, email)
@@ -66,13 +74,13 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         localStorage.removeItem(REMEMBER_EMAIL_KEY)
       }
 
-      // 자동 로그인 처리
-      if (autoLogin) {
-        localStorage.setItem(AUTO_LOGIN_KEY, 'true')
-        localStorage.setItem('mindmap_auto_cred', btoa(encodeURIComponent(JSON.stringify({ e: email, p: password }))))
+      // 비밀번호 저장 처리
+      if (rememberPassword) {
+        localStorage.setItem(SAVED_PASSWORD_KEY, btoa(encodeURIComponent(password)))
+        localStorage.setItem(REMEMBER_PASSWORD_KEY, 'true')
       } else {
-        localStorage.removeItem(AUTO_LOGIN_KEY)
-        localStorage.removeItem('mindmap_auto_cred')
+        localStorage.removeItem(SAVED_PASSWORD_KEY)
+        localStorage.removeItem(REMEMBER_PASSWORD_KEY)
       }
 
       await onAuthSuccess()
@@ -184,23 +192,15 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                   className="remember-email"
                   onClick={() => setRememberEmail(!rememberEmail)}
                 >
-                  <input
-                    type="checkbox"
-                    checked={rememberEmail}
-                    readOnly
-                  />
+                  <input type="checkbox" checked={rememberEmail} readOnly />
                   <span>아이디 저장</span>
                 </div>
                 <div
                   className="remember-email"
-                  onClick={() => setAutoLogin(!autoLogin)}
+                  onClick={() => setRememberPassword(!rememberPassword)}
                 >
-                  <input
-                    type="checkbox"
-                    checked={autoLogin}
-                    readOnly
-                  />
-                  <span>자동 로그인</span>
+                  <input type="checkbox" checked={rememberPassword} readOnly />
+                  <span>비밀번호 저장</span>
                 </div>
               </div>
             )}

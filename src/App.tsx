@@ -31,7 +31,6 @@ interface Collaborator {
 function App() {
   const [user, setUser] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [sessionReady, setSessionReady] = useState(false)
   const [isDemoMode, setIsDemoMode] = useState(isSupabaseDemoMode)
   const [currentLayout, setCurrentLayout] = useState('logicalStructure')
   const [currentMapId, setCurrentMapId] = useState<string | null>(null)
@@ -91,59 +90,20 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (isSupabaseDemoMode) { setSessionReady(true); return }
+    if (isSupabaseDemoMode) return
 
-    const isAutoLogin = localStorage.getItem('mindmap_auto_login') === 'true'
-    const autoCred = localStorage.getItem('mindmap_auto_cred')
-
-    if (isAutoLogin && autoCred) {
-      // 자동 로그인: 저장된 자격증명으로 signInWithPassword 호출
-      const timeout = setTimeout(() => { setSessionReady(true) }, 5000)
-
-      const autoLogin = async () => {
-        try {
-          const { e, p } = JSON.parse(decodeURIComponent(atob(autoCred)))
-          const { data, error } = await supabase.auth.signInWithPassword({ email: e, password: p })
-          clearTimeout(timeout)
-
-          if (error || !data.user) {
-            localStorage.removeItem('mindmap_auto_login')
-            localStorage.removeItem('mindmap_auto_cred')
-            setSessionReady(true)
-            return
-          }
-          setUser(data.user)
-          setIsAuthenticated(true)
-          setSidebarRefresh(prev => prev + 1)
-          setSessionReady(true)
-          const isAdminUser = await checkAdminStatus(data.user.id)
-          if (!isAdminUser) {
-            handleLicenseCheck(data.user.id)
-          }
-        } catch {
-          clearTimeout(timeout)
-          localStorage.removeItem('mindmap_auto_login')
-          localStorage.removeItem('mindmap_auto_cred')
-          setSessionReady(true)
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (isLoggingOut.current) return
+      if (session?.user) {
+        setUser(session.user)
+        setIsAuthenticated(true)
+        setSidebarRefresh(prev => prev + 1)
+        const isAdminUser = await checkAdminStatus(session.user.id)
+        if (!isAdminUser) {
+          handleLicenseCheck(session.user.id)
         }
       }
-      autoLogin()
-    } else {
-      // 일반 시작: 스플래시 없이 바로 진행
-      setSessionReady(true)
-      supabase.auth.getSession().then(async ({ data: { session } }) => {
-        if (isLoggingOut.current) return
-        if (session?.user) {
-          setUser(session.user)
-          setIsAuthenticated(true)
-          setSidebarRefresh(prev => prev + 1)
-          const isAdminUser = await checkAdminStatus(session.user.id)
-          if (!isAdminUser) {
-            handleLicenseCheck(session.user.id)
-          }
-        }
-      })
-    }
+    })
 
     const {
       data: { subscription },
@@ -171,13 +131,10 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Electron 앱 종료 시 자동 로그아웃 (자동 로그인이 아닌 경우)
+  // Electron 앱 종료 시 자동 로그아웃
   useEffect(() => {
     if (!window.electronAPI?.onAppClosing) return
     window.electronAPI.onAppClosing(() => {
-      const isAutoLogin = localStorage.getItem('mindmap_auto_login') === 'true'
-      if (isAutoLogin) return
-
       // Supabase 관련 localStorage 삭제
       const keysToRemove: string[] = []
       for (let i = 0; i < localStorage.length; i++) {
@@ -392,8 +349,6 @@ function App() {
     }
 
     // 2. 로컬 스토리지 먼저 삭제 (signOut 실패해도 세션 제거됨)
-    localStorage.removeItem('mindmap_auto_login')
-    localStorage.removeItem('mindmap_auto_cred')
     clearSupabaseStorage()
     clearLicense()
 
@@ -598,19 +553,6 @@ function App() {
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCurrentMapTitle(e.target.value)
-  }
-
-  // 자동 로그인 스플래시 화면
-  if (!sessionReady) {
-    return (
-      <div className="app splash-screen">
-        <div className="splash-content">
-          <h1>MindMap Pro</h1>
-          <p>로그인 중...</p>
-          <div className="splash-spinner" />
-        </div>
-      </div>
-    )
   }
 
   // 공유 링크로 접근한 경우 - 읽기 전용 뷰
