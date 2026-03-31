@@ -103,12 +103,15 @@ function App() {
       if (session?.user) {
         setUser(session.user)
         setIsAuthenticated(true)
+        setSessionLoading(false)
+        // 관리자/라이선스 체크는 백그라운드에서 진행
         const isAdminUser = await checkAdminStatus(session.user.id)
         if (!isAdminUser) {
           handleLicenseCheck(session.user.id)
         }
+      } else {
+        setSessionLoading(false)
       }
-      setSessionLoading(false)
     }).catch(() => {
       setSessionLoading(false)
     })
