@@ -59,6 +59,7 @@ function App() {
   const isReceivingRemote = useRef(false)
   const isLoggingOut = useRef(false)
   const hasUnsavedChanges = useRef(false)
+  const isInitialLoad = useRef(true)
 
   // 현재 맵이 로컬인지 확인
   const isLocalMap = currentMapId?.startsWith('local_') ?? false
@@ -267,6 +268,11 @@ function App() {
   const handleDataChange = useCallback((data: object) => {
     // 원격 수신 중이면 다시 브로드캐스트하지 않음 (순환 방지)
     if (isReceivingRemote.current) return
+    // 초기 로드 이벤트 무시
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false
+      return
+    }
     hasUnsavedChanges.current = true
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
     debounceTimer.current = setTimeout(() => {
@@ -529,6 +535,7 @@ function App() {
 
   const handleSelectMap = (map: MindMapData | LocalMindMap) => {
     hasUnsavedChanges.current = false
+    isInitialLoad.current = true
     setCurrentMapId(map.id)
     setCurrentMapTitle(map.title)
     mindMapRef.current?.setData(map.data)
@@ -536,6 +543,7 @@ function App() {
 
   const handleNewMap = () => {
     hasUnsavedChanges.current = false
+    isInitialLoad.current = true
     setCurrentMapId(null)
     setCurrentMapTitle('새 마인드맵')
     setCollaborators([])

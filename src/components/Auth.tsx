@@ -3,7 +3,7 @@ import { supabase, isDemoMode as isSupabaseDemoMode } from '../lib/supabase'
 import { LogIn, UserPlus, Mail, Lock, Key } from 'lucide-react'
 
 interface AuthProps {
-  onAuthSuccess: () => void
+  onAuthSuccess: () => void | Promise<void>
 }
 
 const SAVED_EMAIL_KEY = 'mindmap_saved_email'
@@ -73,7 +73,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         localStorage.removeItem(AUTO_LOGIN_KEY)
       }
 
-      onAuthSuccess()
+      await onAuthSuccess()
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류가 발생했습니다')
     } finally {
