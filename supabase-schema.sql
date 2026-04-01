@@ -105,8 +105,11 @@ CREATE POLICY "Users can view own mindmaps" ON mindmaps
 CREATE POLICY "Users can create mindmaps" ON mindmaps
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own mindmaps" ON mindmaps
-  FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own or shared mindmaps" ON mindmaps
+  FOR UPDATE USING (
+    auth.uid() = user_id OR
+    auth.uid() = ANY(shared_with)
+  );
 
 CREATE POLICY "Users can delete own mindmaps" ON mindmaps
   FOR DELETE USING (auth.uid() = user_id);

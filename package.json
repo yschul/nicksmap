@@ -1,7 +1,7 @@
 {
   "name": "mindmap-app",
   "private": true,
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "협업 마인드맵 도구",
   "main": "electron/main.js",
   "author": "MindMap Pro",
@@ -17,6 +17,7 @@
     "electron:build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.60.1",
     "@supabase/supabase-js": "^2.91.0",
     "electron-updater": "^6.8.3",
     "lucide-react": "^0.562.0",

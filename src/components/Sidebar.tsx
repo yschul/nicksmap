@@ -10,6 +10,7 @@ import {
   Crown,
   HardDrive,
   Cloud,
+  UserMinus,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { MindMapData } from '../lib/supabase'
@@ -63,7 +64,11 @@ export default function Sidebar({
   const loadMaps = async () => {
     if (!user || isDemoMode) return
 
-    setLoading(true)
+    // 초기 로드에서만 로딩 표시, 리프레시 시에는 기존 목록 유지
+    const isInitialLoad = maps.length === 0
+    if (isInitialLoad) {
+      setLoading(true)
+    }
     try {
       const { data, error } = await supabase
         .from('mindmaps')
@@ -99,6 +104,32 @@ export default function Sidebar({
       setMaps(maps.filter((m) => m.id !== mapId))
     } catch (err) {
       console.error('Failed to delete map:', err)
+    }
+  }
+
+  // 공유받은 맵에서 나가기 (shared_with에서 자신 제거)
+  const handleLeaveSharedMap = async (mapId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!user) return
+    if (!await showConfirm('이 공유 마인드맵에서 나가시겠습니까?')) return
+
+    try {
+      const map = maps.find(m => m.id === mapId)
+      if (!map) return
+
+      const newSharedWith = (map.shared_with || []).filter((id: string) => id !== user.id)
+      const { error } = await supabase
+        .from('mindmaps')
+        .update({
+          shared_with: newSharedWith,
+          is_shared: newSharedWith.length > 0,
+        })
+        .eq('id', mapId)
+
+      if (error) throw error
+      setMaps(maps.filter((m) => m.id !== mapId))
+    } catch (err) {
+      console.error('Failed to leave shared map:', err)
     }
   }
 
@@ -202,24 +233,38 @@ export default function Sidebar({
             ) : maps.length === 0 ? (
               <div className="empty">클라우드에 저장된 맵이 없습니다</div>
             ) : (
-              maps.map((map) => (
-                <div
-                  key={map.id}
-                  className={`map-item ${currentMapId === map.id ? 'active' : ''}`}
-                  onClick={() => onSelectMap(map)}
-                >
-                  <span className="map-title">{map.title}</span>
-                  <div className="map-actions">
-                    {map.is_shared && <Users size={14} className="shared-icon" />}
-                    <button
-                      className="delete-btn"
-                      onClick={(e) => handleDeleteMap(map.id, e)}
-                    >
-                      <Trash2 size={14} />
-                    </button>
+              maps.map((map) => {
+                const isOwner = map.user_id === user?.id
+                return (
+                  <div
+                    key={map.id}
+                    className={`map-item ${currentMapId === map.id ? 'active' : ''}`}
+                    onClick={() => onSelectMap(map)}
+                  >
+                    <span className="map-title">{map.title}</span>
+                    <div className="map-actions">
+                      {map.is_shared && <Users size={14} className="shared-icon" />}
+                      {isOwner ? (
+                        <button
+                          className="delete-btn"
+                          onClick={(e) => handleDeleteMap(map.id, e)}
+                          title="삭제"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      ) : (
+                        <button
+                          className="delete-btn"
+                          onClick={(e) => handleLeaveSharedMap(map.id, e)}
+                          title="공유 나가기"
+                        >
+                          <UserMinus size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>

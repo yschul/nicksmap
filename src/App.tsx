@@ -429,7 +429,7 @@ function App() {
     setIsSaving(true)
     try {
       if (currentMapId) {
-        const { error } = await supabase
+        const { data: updated, error } = await supabase
           .from('mindmaps')
           .update({
             data,
@@ -437,8 +437,13 @@ function App() {
             updated_at: new Date().toISOString(),
           })
           .eq('id', currentMapId)
+          .select('id')
 
         if (error) throw error
+        if (!updated || updated.length === 0) {
+          showError('저장 권한이 없습니다. 맵 소유자에게 문의하세요.')
+          return
+        }
       } else {
         const { data: newMap, error } = await supabase
           .from('mindmaps')
