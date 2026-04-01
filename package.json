@@ -17,7 +17,6 @@
     "electron:build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.60.1",
     "@supabase/supabase-js": "^2.91.0",
     "electron-updater": "^6.8.3",
     "lucide-react": "^0.562.0",
